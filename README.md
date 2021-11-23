@@ -9,9 +9,9 @@ Install the required libraries:
 make install
 ```
 
-### Auslanderbehörde Bot
+### Ausländerbehörde Bot
 
-The **Auslanderbehörde bot** can book appointments for:
+The **Ausländerbehörde bot** can book appointments for:
 - Apply or extend a residence permit
 - Transfer the residence permit to a new passport
 - Apply for a settlement permit
