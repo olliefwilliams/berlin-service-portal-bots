@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support import select
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
+from os.path import dirname, abspath, join
 from webdriver_manager.chrome import ChromeDriverManager
 
 import time
@@ -16,9 +17,15 @@ class WebDriver:
   def __init__(self, headless, timeout):
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
+    options.add_experimental_option("prefs", {
+        "download.default_directory": join(dirname(dirname(abspath(__file__))), "/downloads/"),
+        "download.prompt_for_download": False,
+        "download.directory_upgrade": True,
+        "safebrowsing.enabled": True
+    })
 
     if headless:
-      options.add_argument('--headless')
+      options.add_argument("--headless")
 
     self.web_driver = webdriver.Chrome(options=options, service=service)
     self.timeout = timeout
@@ -52,6 +59,11 @@ class WebDriver:
     time.sleep(1)
     options = select.find_elements(By.TAG_NAME, "option")
     return list(map(lambda option: option.text, options))
+
+  def get_attribute_content(self, xpath, attribute):
+    return WebDriverWait(self.web_driver, self.timeout).until(
+        expected_conditions.visibility_of_element_located((By.XPATH, xpath))
+    ).get_attribute(attribute)
 
   def get_content(self, xpath):
     return WebDriverWait(self.web_driver, self.timeout).until(

@@ -264,8 +264,10 @@ class AuslanderbehordeBot(Bot):
     return self.web_driver.has_element("//legend[text()='Appointment selection']")
 
   def has_error_message(self):
-    # There are currently no dates available for the selected service! Please try again later.
     return self.web_driver.has_element("//*[@class='errorMessage']")
+
+  def get_error_message(self):
+    return self.web_driver.get_content("//*[@class='errorMessage']")
 
   def check_available_appointments(self):
     count = 0
@@ -275,10 +277,10 @@ class AuslanderbehordeBot(Bot):
       time.sleep(self.refresh_interval)
 
       if self.has_appointment_selection():
-        self._notify("Hurry up! There are appointments available")
+        self._notify("Appointments available")
         break
       elif self.has_error_message():
-        print(f"({count}) No appointments yet")
+        print(f"({count}) Error message: \"{self.get_error_message()}\"")
         count += 1
         not_found_count = 0
         time.sleep(3)
@@ -287,6 +289,47 @@ class AuslanderbehordeBot(Bot):
         not_found_count += 1
         if not_found_count > 3:
           raise Exception("Timeout for expected elements to be found")
+
+  def search_calendar(self):
+    self.month = self.__month_to_text(
+        self.config.get_int("auslanderbehorde_bot", "month"))
+
+    maximum_next_clicks = 3
+    while maximum_next_clicks:
+      self.web_driver.wait_visibility(
+          "//div[contains(@class,'ui-datepicker-header')]//*[@class='ui-datepicker-month']")
+
+      if self.web_driver.has_element(f"//div[contains(@class,'ui-datepicker-header')]//*[@class='ui-datepicker-month' and contains(text(), '{self.month}')]"):
+        year = self.web_driver.get_content(
+            "//div[contains(@class,'ui-datepicker-header')]//*[@class='ui-datepicker-year']")
+        print(f"Calendar for \"{self.month} {year}\" found")
+        return
+      else:
+        print(f"Searching for \"{self.month}\" calendar, clicking next")
+        self.web_driver.click("//a[contains(@class, 'ui-datepicker-next')]")
+        maximum_next_clicks -= 1
+        time.sleep(5)
+        continue
+
+    raise Exception(f"Calendar \"{self.month}\" not found")
+
+  def __month_to_text(self, month):
+    return ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+            ][month - 1]
+
+  def click_first_available_calendar_day_of_month(self):
+    xpath = f"//div[div[*[@class='ui-datepicker-month'] = '{self.month}']]/following-sibling::table//a[contains(@class, 'ui-state-active')]"
+
+    if self.web_driver.has_element(xpath):
+      self.web_driver.click(xpath)
+      day = self.web_driver.get_content(xpath)
+
+      print(
+          f"Clicking on the first available calendar date for \"{self.month}\", day \"{day}\""
+      )
+    else:
+      raise Exception(f"No available date for \"{self.month}\" was found")
 
   def click_first_available_calendar_day(self):
     self.web_driver.click("//a[contains(@class, 'ui-state-active')]")
@@ -364,24 +407,45 @@ class AuslanderbehordeBot(Bot):
           f"Filling \"{residence_title}\" as for applicant's residence title"
       )
     else:
-      print(
-          f"Skipping applicant's residence title"
-      )
+      print("Skipping applicant's residence title")
 
-  def done(self):
-    self._notify("Reservation done, check it out!")
+  def wait_summary(self):
+    print("Waiting for the appointment summary")
+    self._notify("Appointment summary")
+    self.web_driver.wait_visibility("//button[@id='summaryForm:proceed']")
+
+  def click_book_appointment(self):
+    # Appointment booking - Please check your data
+
+    # After booking the appointment, you will receive an appointment confirmation with a summary of your data and all necessary information. Please make sure to bring complete documents. Otherwise we may not able to serve you.
+    self.web_driver.click("//button[@id='summaryForm:proceed']")
+    print("Clicking on \"Book appointment\"")
+
+  def click_appointment_confirmation_as_pdf_file(self):
+    # Thank you for booking your appointment
+
+    # In your e-mail inbox you will find the appointment confirmation with all information about the required documents and fees.
+    # However, we recommend that you save the appointment confirmation immediately and, if possible, print it out:
+
+    xpath = "//div[@id='EN3']/a[@class='btnApplicationPdf']"
+
+    # Appointment confirmation as PDF file
+    print(
+        f"Appointment confirmation PDF file link: {self.web_driver.get_attribute_content(xpath)}")
+    self.web_driver.click(xpath)
+    print("Clicking on \"Appointment confirmation as PDF file\"")
 
 
 def main():
   def __load():
     auslanderbehorde_bot = AuslanderbehordeBot()
 
-    # 1. Information
+    # Information
     auslanderbehorde_bot.load_appointment_page()
     auslanderbehorde_bot.check_terms_and_conditions()
     auslanderbehorde_bot.click_next()
 
-    # 2. Service selection
+    # Service selection
     auslanderbehorde_bot.select_citizenship()
     auslanderbehorde_bot.select_number_of_applicants()
     auslanderbehorde_bot.select_family_member_living()
@@ -393,12 +457,14 @@ def main():
     auslanderbehorde_bot.click_next()
     auslanderbehorde_bot.check_available_appointments()
 
-    # 3. Date selection
+    # Date selection
+    # auslanderbehorde_bot.search_calendar()
+    # auslanderbehorde_bot.click_first_available_calendar_day_of_month()
     auslanderbehorde_bot.click_first_available_calendar_day()
     auslanderbehorde_bot.select_first_available_time()
     auslanderbehorde_bot.click_next()
 
-    # 4. Details
+    # Details
     auslanderbehorde_bot.fill_first_name()
     auslanderbehorde_bot.fill_last_name()
     auslanderbehorde_bot.fill_date_of_birth()
@@ -407,8 +473,12 @@ def main():
     auslanderbehorde_bot.fill_residence_title()
     auslanderbehorde_bot.click_next()
 
-    # 5. Reservation
-    auslanderbehorde_bot.done()
+    # Summary
+    auslanderbehorde_bot.wait_summary()
+    # auslanderbehorde_bot.click_book_appointment()
+
+    # Reservation
+    # auslanderbehorde_bot.click_appointment_confirmation_as_pdf_file()
 
   bot.loop(__load)
 
