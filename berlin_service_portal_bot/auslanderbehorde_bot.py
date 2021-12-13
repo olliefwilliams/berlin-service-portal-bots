@@ -411,8 +411,8 @@ class AuslanderbehordeBot(Bot):
 
   def wait_summary(self):
     print("Waiting for the appointment summary")
-    self._notify("Appointment summary")
     self.web_driver.wait_visibility("//button[@id='summaryForm:proceed']")
+    self._notify("Appointment summary")
 
   def click_book_appointment(self):
     # Appointment booking - Please check your data
