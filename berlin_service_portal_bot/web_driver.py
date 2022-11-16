@@ -17,6 +17,7 @@ class WebDriver:
   def __init__(self, headless, timeout):
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
+    options.add_argument( '--disable-blink-features=AutomationControlled' )
     options.add_experimental_option("prefs", {
         "download.default_directory": join(dirname(dirname(abspath(__file__))), "/downloads/"),
         "download.prompt_for_download": False,
