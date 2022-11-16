@@ -1,6 +1,6 @@
 import time
 import bot
-
+from os import system
 from bot import Bot
 
 
@@ -277,6 +277,7 @@ class AuslanderbehordeBot(Bot):
       time.sleep(self.refresh_interval)
 
       if self.has_appointment_selection():
+        system(f'say "Appointments available" &')
         self._notify("Appointments available")
         break
       elif self.has_error_message():
